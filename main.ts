@@ -1,11 +1,9 @@
-import { saveRankings } from "./utils/storage.ts";
+import { loadRankings, saveRankings } from "./utils/storage.ts";
 import { Match, Work } from "./utils/types.ts";
 
+export const SAVE_DIR = "./data";
 
-export const SAVE_DIR = './data'
-
-
-let movies: Work[] = [
+const test_works: Work[] = [
   {
     initial_rating: 6,
     name: "Dragons 2",
@@ -80,32 +78,73 @@ let movies: Work[] = [
   },
 ];
 
-movies = movies.slice(undefined,4)
-
-
-
 // Learn more at https://docs.deno.com/runtime/manual/examples/module_metadata#concepts
 if (import.meta.main) {
-  console.log("\n== ⚖️  SensCritiqueELO ⚖️  ==\n");
-  console.log(`${movies.length} works loaded.`);
-  const elo_rankings: Work[] = movies.map((movie) => ({
+  console.log("\n== ⚖️  SensCritique ELO ⚖️  ==\n");
+
+  const command = Deno.args[0];
+
+  if (command === "full_tournament") {
+    await fullTournament();
+  } else if (command === "import_works") {
+    await importWorks(); //create rankings CSV
+  } else {
+    console.log("⚠️  Unknown command.");
+  }
+
+  /* const elo_rankings: Work[] = existing_rankings.map((movie) => ({
     ...movie,
     elo_score: movie.initial_rating * 100,
     matches_played: 0,
   }));
-  console.log("Base rankings computed.");
-  const new_rankings = tournament(elo_rankings);
-  console.table(new_rankings);
-  console.log("\n")
+  console.log("Base rankings computed.");*/
+  /*  */
+}
+
+async function importWorks() {
+  const existing_rankings = await loadRankings();
+
+  if (existing_rankings.length) {
+    console.log(
+      `⚠️  This will overwrite your existing rankings. Please backup first.`
+    );
+    Deno.exit();
+  }
+
+  const new_rankings: Work[] = test_works.map((work) => ({
+    ...work,
+    elo_score: work.initial_rating * 100,
+    matches_played: 0,
+  }));
+
+  console.log(`ℹ️  ${new_rankings.length} works imported.\n`);
   await saveRankings(new_rankings);
+}
+
+async function fullTournament() {
+  const existing_rankings = await loadRankings();
+
+  console.log(`${existing_rankings.length} works loaded.`);
+
+  if (!existing_rankings.length) {
+    console.log(
+      `⚠️  No rankings file found. Please provide one in ${SAVE_DIR}.`
+    );
+    Deno.exit();
+  } else {
+    const new_rankings = tournament(existing_rankings);
+    console.table(new_rankings);
+    console.log("\n");
+    await saveRankings(new_rankings);
+  }
 }
 
 function tournament(elo_rankings: Work[]): Work[] {
   console.log("\nℹ️  Tournament started.\n");
   const phase1_rankings = tournament_phase1(elo_rankings);
-  console.clear()
+  console.clear();
   const phase2_rankings = tournament_phase2(phase1_rankings);
-  console.clear()
+  console.clear();
   console.log("ℹ️  Tournament finished.\n");
   return phase2_rankings;
 }
@@ -115,10 +154,9 @@ function tournament_phase1(elo_rankings: Work[]): Work[] {
   const matches = generateMatches(elo_rankings, elo_rankings.length);
 
   const updated_rankings = matches.reduce((rankings, match, matchIndex) => {
-
     // Refresh the match with the latest works from rankings to have current matches_played
-    const freshWorkA = rankings.find(w => w.name === match.work_A.name)!;
-    const freshWorkB = rankings.find(w => w.name === match.work_B.name)!;
+    const freshWorkA = rankings.find((w) => w.name === match.work_A.name)!;
+    const freshWorkB = rankings.find((w) => w.name === match.work_B.name)!;
     const freshMatch: Match = { work_A: freshWorkA, work_B: freshWorkB };
 
     const updated_match = playMatch(freshMatch, matchIndex);
@@ -133,19 +171,17 @@ function tournament_phase1(elo_rankings: Work[]): Work[] {
 function tournament_phase2(elo_rankings: Work[]): Work[] {
   console.log("ℹ️  Phase 2 'Underplayed matches' started.");
 
-  const underplayed = elo_rankings.filter(work => work.matches_played! <= 2);
+  const underplayed = elo_rankings.filter((work) => work.matches_played! <= 2);
   const matches = generateMatches(underplayed, underplayed.length);
 
   const updated_rankings = matches.reduce((rankings, match, matchIndex) => {
-
     // Refresh the match with the latest works from rankings to have current matches_played
-    const freshWorkA = rankings.find(w => w.name === match.work_A.name)!;
-    const freshWorkB = rankings.find(w => w.name === match.work_B.name)!;
+    const freshWorkA = rankings.find((w) => w.name === match.work_A.name)!;
+    const freshWorkB = rankings.find((w) => w.name === match.work_B.name)!;
     const freshMatch: Match = { work_A: freshWorkA, work_B: freshWorkB };
 
     const updated_match = playMatch(freshMatch, matchIndex);
     return updateRankings(rankings, updated_match);
-
   }, elo_rankings);
 
   console.log("ℹ️  Phase 2 'Underplayed matches' finished.");
@@ -205,20 +241,12 @@ function playMatch(match: Match, matchNumber: number): Match {
   const old_elo_workA = match.work_A.elo_score;
   const old_elo_workB = match.work_B.elo_score;
 
-  /* console.log("🏆 Elo changes:");
+  /* console.log("\n🏆 Elo changes:");
   console.log(
-    match.work_A.name +
-      ": " +
-      old_elo_workA +
-      " → " +
-      new_elo_scores.workA
+    match.work_A.name + ": " + old_elo_workA + " → " + new_elo_scores.workA
   );
   console.log(
-    match.work_B.name +
-      ": " +
-      old_elo_workB +
-      " → " +
-      new_elo_scores.workB
+    match.work_B.name + ": " + old_elo_workB + " → " + new_elo_scores.workB
   ); */
 
   console.clear()
@@ -231,7 +259,7 @@ function playMatch(match: Match, matchNumber: number): Match {
 }
 
 function updateRankings(rankings: Work[], match: Match): Work[] {
-  return rankings.map(work => {
+  return rankings.map((work) => {
     if (work.name === match.work_A.name) {
       return {
         ...match.work_A,
@@ -284,4 +312,3 @@ function compute_elo_after_match(match: Match): {
   }); */
   return { workA: new_elo_workA, workB: new_elo_workB };
 }
-
