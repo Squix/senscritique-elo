@@ -1,6 +1,10 @@
 import { loadRankings, saveRankings } from "./utils/storage.ts";
 import { Match, Work } from "./utils/types.ts";
 
+import {
+  bold,
+} from "@std/fmt/colors";
+
 export const SAVE_DIR = "./data";
 
 const test_works: Work[] = [
@@ -80,7 +84,7 @@ const test_works: Work[] = [
 
 // Learn more at https://docs.deno.com/runtime/manual/examples/module_metadata#concepts
 if (import.meta.main) {
-  console.log("\n== ⚖️  SensCritique ELO ⚖️  ==\n");
+  console.log(bold(`\n== ⚖️  SensCritique ELO ⚖️  ==\n`));
 
   const command = Deno.args[0];
 
@@ -150,7 +154,7 @@ function tournament(elo_rankings: Work[]): Work[] {
 }
 
 function tournament_phase1(elo_rankings: Work[]): Work[] {
-  console.log("ℹ️  Phase 1 'Random n matches' started.");
+  console.log("ℹ️  Phase 1 'Random n matches' started.\n");
   const matches = generateMatches(elo_rankings, elo_rankings.length);
 
   const updated_rankings = matches.reduce((rankings, match, matchIndex) => {
@@ -169,7 +173,7 @@ function tournament_phase1(elo_rankings: Work[]): Work[] {
 }
 
 function tournament_phase2(elo_rankings: Work[]): Work[] {
-  console.log("ℹ️  Phase 2 'Underplayed matches' started.");
+  console.log("ℹ️  Phase 2 'Underplayed matches' started.\n");
 
   const underplayed = elo_rankings.filter((work) => work.matches_played! <= 2);
   const matches = generateMatches(underplayed, underplayed.length);
@@ -215,12 +219,12 @@ function pickRandomPair(array: any[]): [any, any] {
 }
 
 function playMatch(match: Match, matchNumber: number): Match {
-  console.log(`===== Match ${matchNumber} =====`);
-  console.log(match.work_A.name + " vs " + match.work_B.name);
+  console.log(`\n===== Match ${bold(matchNumber.toString())} =====\n`);
+  console.log(bold(match.work_A.name) + " vs " + bold(match.work_B.name));
   console.log("\nWhich is better?");
-  console.log("1. " + match.work_A.name);
-  console.log("2. " + match.work_B.name);
-  console.log("0. Can't say");
+  console.log(" 1. " + match.work_A.name);
+  console.log(" 2. " + match.work_B.name);
+  console.log(" 0. Can't say");
 
   let winner: string | null;
   do {
@@ -249,7 +253,7 @@ function playMatch(match: Match, matchNumber: number): Match {
     match.work_B.name + ": " + old_elo_workB + " → " + new_elo_scores.workB
   ); */
 
-  console.clear()
+  console.clear();
 
   return {
     ...match,
