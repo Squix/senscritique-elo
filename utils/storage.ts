@@ -5,6 +5,13 @@ import { SAVE_DIR } from "../main.ts";
 
 const CSV_COLUMNS = ["title", "elo_score", "initial_rating", "matches_played"]
 
+type CSVwork = {
+    title:string,
+    elo_score:string,
+    initial_rating:string,
+    matches_played:string
+}
+
 const CSV_FILE_NAME = "rankings.csv"
 
 export async function saveRankings(rankings : Work[]) : Promise<void> {
@@ -28,10 +35,10 @@ export async function loadRankings() : Promise<Work[]> {
         const rankings = csvParse(await Deno.readTextFile(rankings_file_path), {
             columns: CSV_COLUMNS,
             skipFirstRow:true
-        });
+        }) as CSVwork[];
 
         return rankings.map(parsedWork=>({
-            title:parsedWork.name,
+            title:parsedWork.title,
             elo_score: parseFloat(parsedWork.elo_score),
             initial_rating: parseInt(parsedWork.initial_rating),
             matches_played: parseInt(parsedWork.matches_played)
