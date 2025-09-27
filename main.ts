@@ -1,86 +1,12 @@
+import { getUserCollection } from "./utils/senscritique_api.ts";
 import { loadRankings, saveRankings } from "./utils/storage.ts";
-import { Match, Work } from "./utils/types.ts";
+import { Match, SensCritiqueUniverse, SensCritiqueUniverseEnum, Work } from "./utils/types.ts";
 
 import {
   bold,
 } from "@std/fmt/colors";
 
 export const SAVE_DIR = "./data";
-
-const test_works: Work[] = [
-  {
-    initial_rating: 6,
-    name: "Dragons 2",
-  },
-  {
-    initial_rating: 8,
-    name: "Au revoir là-haut",
-  },
-  {
-    initial_rating: 8,
-    name: "Dragons",
-  },
-  {
-    initial_rating: 6,
-    name: "The Artist",
-  },
-  {
-    name: "Le Robot sauvage",
-    initial_rating: 9,
-  },
-  {
-    name: "Y a t-il un flic pour sauver le monde ?",
-    initial_rating: 8,
-  },
-  {
-    name: "BigBug",
-    initial_rating: 5,
-  },
-  {
-    name: "L'Accident de piano",
-    initial_rating: 7,
-  },
-  {
-    name: "Premier Contact",
-    initial_rating: 7,
-  },
-  {
-    name: "Rencontres du troisième type",
-    initial_rating: 9,
-  },
-  {
-    name: "The Pod Generation",
-    initial_rating: 7,
-  },
-  {
-    name: "Astérix & Obélix - Mission Cléopâtre",
-    initial_rating: 5,
-  },
-  {
-    name: "Coco",
-    initial_rating: 7,
-  },
-  {
-    name: "Baby Driver",
-    initial_rating: 6,
-  },
-  {
-    name: "Un p'tit truc en plus",
-    initial_rating: 7,
-  },
-  {
-    name: "Avengers",
-    initial_rating: 4,
-  },
-  {
-    name: "Jeux d'enfants",
-    initial_rating: 3,
-  },
-  {
-    name: "Bullet Train",
-    initial_rating: 7,
-  },
-];
 
 // Learn more at https://docs.deno.com/runtime/manual/examples/module_metadata#concepts
 if (import.meta.main) {
@@ -91,7 +17,7 @@ if (import.meta.main) {
   if (command === "full_tournament") {
     await fullTournament();
   } else if (command === "import_works") {
-    await importWorks(); //create rankings CSV
+    await importWorks(); //create rankings CSV from SensCritique collection
   } else {
     console.log("⚠️  Unknown command.");
   }
@@ -115,11 +41,42 @@ async function importWorks() {
     Deno.exit();
   }
 
-  const new_rankings: Work[] = test_works.map((work) => ({
+  const username_arg = Deno.args[1];
+  const universe_arg = Deno.args[2];
+
+  if(!username_arg) {
+    console.log(
+      `⚠️  No senscritique username provided.\n`
+    );
+    Deno.exit();
+  }
+
+  if(!universe_arg) {
+    console.log(
+      `⚠️  No senscritique universe provided.\n`
+    );
+    Deno.exit();
+  }
+
+  if(!(universe_arg in SensCritiqueUniverseEnum)) {
+    console.log(
+      `⚠️  Invalid senscritique universe provided.\n`
+    );
+    Deno.exit();
+  }
+
+  const works_from_senscritique = await getUserCollection(
+    username_arg,
+    universe_arg as SensCritiqueUniverse
+  );
+
+  const new_rankings: Work[] = works_from_senscritique.map((work) => ({
     ...work,
     elo_score: work.initial_rating * 100,
     matches_played: 0,
   }));
+
+  console.table(new_rankings)
 
   console.log(`ℹ️  ${new_rankings.length} works imported.\n`);
   await saveRankings(new_rankings);
@@ -159,8 +116,8 @@ function tournament_phase1(elo_rankings: Work[]): Work[] {
 
   const updated_rankings = matches.reduce((rankings, match, matchIndex) => {
     // Refresh the match with the latest works from rankings to have current matches_played
-    const freshWorkA = rankings.find((w) => w.name === match.work_A.name)!;
-    const freshWorkB = rankings.find((w) => w.name === match.work_B.name)!;
+    const freshWorkA = rankings.find((w) => w.title === match.work_A.title)!;
+    const freshWorkB = rankings.find((w) => w.title === match.work_B.title)!;
     const freshMatch: Match = { work_A: freshWorkA, work_B: freshWorkB };
 
     const updated_match = playMatch(freshMatch, matchIndex);
@@ -180,8 +137,8 @@ function tournament_phase2(elo_rankings: Work[]): Work[] {
 
   const updated_rankings = matches.reduce((rankings, match, matchIndex) => {
     // Refresh the match with the latest works from rankings to have current matches_played
-    const freshWorkA = rankings.find((w) => w.name === match.work_A.name)!;
-    const freshWorkB = rankings.find((w) => w.name === match.work_B.name)!;
+    const freshWorkA = rankings.find((w) => w.title === match.work_A.title)!;
+    const freshWorkB = rankings.find((w) => w.title === match.work_B.title)!;
     const freshMatch: Match = { work_A: freshWorkA, work_B: freshWorkB };
 
     const updated_match = playMatch(freshMatch, matchIndex);
@@ -220,10 +177,10 @@ function pickRandomPair(array: any[]): [any, any] {
 
 function playMatch(match: Match, matchNumber: number): Match {
   console.log(`\n===== Match ${bold(matchNumber.toString())} =====\n`);
-  console.log(bold(match.work_A.name) + " vs " + bold(match.work_B.name));
+  console.log(bold(match.work_A.title) + " vs " + bold(match.work_B.title));
   console.log("\nWhich is better?");
-  console.log(" 1. " + match.work_A.name);
-  console.log(" 2. " + match.work_B.name);
+  console.log(" 1. " + match.work_A.title);
+  console.log(" 2. " + match.work_B.title);
   console.log(" 0. Can't say");
 
   let winner: string | null;
@@ -247,10 +204,10 @@ function playMatch(match: Match, matchNumber: number): Match {
 
   /* console.log("\n🏆 Elo changes:");
   console.log(
-    match.work_A.name + ": " + old_elo_workA + " → " + new_elo_scores.workA
+    match.work_A.title + ": " + old_elo_workA + " → " + new_elo_scores.workA
   );
   console.log(
-    match.work_B.name + ": " + old_elo_workB + " → " + new_elo_scores.workB
+    match.work_B.title + ": " + old_elo_workB + " → " + new_elo_scores.workB
   ); */
 
   console.clear();
@@ -264,13 +221,13 @@ function playMatch(match: Match, matchNumber: number): Match {
 
 function updateRankings(rankings: Work[], match: Match): Work[] {
   return rankings.map((work) => {
-    if (work.name === match.work_A.name) {
+    if (work.title === match.work_A.title) {
       return {
         ...match.work_A,
         matches_played: (work.matches_played ?? 0) + 1,
       };
     }
-    if (work.name === match.work_B.name) {
+    if (work.title === match.work_B.title) {
       return {
         ...match.work_B,
         matches_played: (work.matches_played ?? 0) + 1,

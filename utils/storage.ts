@@ -3,7 +3,7 @@ import { dirname, join } from "@std/path";
 import { Work } from "./types.ts";
 import { SAVE_DIR } from "../main.ts";
 
-const CSV_COLUMNS = ["name", "elo_score", "initial_rating", "matches_played"]
+const CSV_COLUMNS = ["title", "elo_score", "initial_rating", "matches_played"]
 
 const CSV_FILE_NAME = "rankings.csv"
 
@@ -31,7 +31,7 @@ export async function loadRankings() : Promise<Work[]> {
         });
 
         return rankings.map(parsedWork=>({
-            name:parsedWork.name,
+            title:parsedWork.name,
             elo_score: parseFloat(parsedWork.elo_score),
             initial_rating: parseInt(parsedWork.initial_rating),
             matches_played: parseInt(parsedWork.matches_played)
