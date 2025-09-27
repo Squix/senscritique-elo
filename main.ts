@@ -4,11 +4,11 @@ type Work = {
   initial_rating: SensCritiqueRating;
   name: string;
   elo_score?: number;
-  matches_count: number;
+  matches_played?: number;
   final_rating?: SensCritiqueRating;
 };
 
-const movies: Work[] = [
+let movies: Work[] = [
   {
     initial_rating: 6,
     name: "Dragons 2",
@@ -83,6 +83,8 @@ const movies: Work[] = [
   },
 ];
 
+//for testing movies = movies.slice(undefined,4)
+
 type Match = {
   work_A: Work;
   work_B: Work;
@@ -96,7 +98,7 @@ if (import.meta.main) {
   const elo_rankings: Work[] = movies.map((movie) => ({
     ...movie,
     elo_score: movie.initial_rating * 100,
-    matches_count: 0,
+    matches_played: 0,
   }));
   console.log("Base rankings computed.");
   const new_rankings = tournament(elo_rankings);
@@ -106,6 +108,7 @@ if (import.meta.main) {
 function tournament(elo_rankings: Work[]): Work[] {
   console.log("ℹ️  Tournament started.");
   const phase1_rankings = tournament_phase1(elo_rankings);
+  console.clear()
   const phase2_rankings = tournament_phase2(phase1_rankings);
 
   return phase2_rankings;
@@ -116,7 +119,14 @@ function tournament_phase1(elo_rankings: Work[]): Work[] {
   const matches = generateMatches(elo_rankings, elo_rankings.length);
 
   const updated_rankings = matches.reduce((rankings, match, matchIndex) => {
-    const updated_match = playMatch(match, matchIndex);
+
+    // Refresh the match with the latest works from rankings to have current matches_played
+    const freshWorkA = rankings.find(w => w.name === match.work_A.name)!;
+    const freshWorkB = rankings.find(w => w.name === match.work_B.name)!;
+    const freshMatch: Match = { work_A: freshWorkA, work_B: freshWorkB };
+
+    const updated_match = playMatch(freshMatch, matchIndex);
+
     return updateRankings(rankings, updated_match);
   }, elo_rankings);
 
@@ -127,12 +137,19 @@ function tournament_phase1(elo_rankings: Work[]): Work[] {
 function tournament_phase2(elo_rankings: Work[]): Work[] {
   console.log("ℹ️  Phase 2 'Underplayed matches' started.");
 
-  const underplayed = elo_rankings.filter(work => work.matches_count <= 2);
+  const underplayed = elo_rankings.filter(work => work.matches_played! <= 2);
   const matches = generateMatches(underplayed, underplayed.length);
 
   const updated_rankings = matches.reduce((rankings, match, matchIndex) => {
-    const updated_match = playMatch(match, matchIndex);
+
+    // Refresh the match with the latest works from rankings to have current matches_played
+    const freshWorkA = rankings.find(w => w.name === match.work_A.name)!;
+    const freshWorkB = rankings.find(w => w.name === match.work_B.name)!;
+    const freshMatch: Match = { work_A: freshWorkA, work_B: freshWorkB };
+
+    const updated_match = playMatch(freshMatch, matchIndex);
     return updateRankings(rankings, updated_match);
+
   }, elo_rankings);
 
   console.log("ℹ️  Phase 2 'Underplayed matches' finished.");
@@ -192,7 +209,7 @@ function playMatch(match: Match, matchNumber: number): Match {
   const old_elo_workA = match.work_A.elo_score;
   const old_elo_workB = match.work_B.elo_score;
 
-  console.log("🏆 Elo changes:");
+  /* console.log("🏆 Elo changes:");
   console.log(
     match.work_A.name +
       ": " +
@@ -206,21 +223,33 @@ function playMatch(match: Match, matchNumber: number): Match {
       old_elo_workB +
       " → " +
       new_elo_scores.workB
-  );
+  ); */
+
+  console.clear()
 
   return {
     ...match,
-    work_A: { ...match.work_A, elo_score: new_elo_scores.workA, matches_count: match.work_A.matches_count + 1 },
-    work_B: { ...match.work_B, elo_score: new_elo_scores.workB, matches_count: match.work_B.matches_count + 1 },
+    work_A: { ...match.work_A, elo_score: new_elo_scores.workA },
+    work_B: { ...match.work_B, elo_score: new_elo_scores.workB },
   };
 }
 
 function updateRankings(rankings: Work[], match: Match): Work[] {
-  return rankings.map(work =>
-    work.name === match.work_A.name ? match.work_A :
-    work.name === match.work_B.name ? match.work_B :
-    work
-  );
+  return rankings.map(work => {
+    if (work.name === match.work_A.name) {
+      return {
+        ...match.work_A,
+        matches_played: (work.matches_played ?? 0) + 1,
+      };
+    }
+    if (work.name === match.work_B.name) {
+      return {
+        ...match.work_B,
+        matches_played: (work.matches_played ?? 0) + 1,
+      };
+    }
+    return work;
+  });
 }
 
 function compute_elo_after_match(match: Match): {
@@ -259,3 +288,4 @@ function compute_elo_after_match(match: Match): {
   }); */
   return { workA: new_elo_workA, workB: new_elo_workB };
 }
+
