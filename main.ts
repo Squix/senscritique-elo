@@ -1,3 +1,4 @@
+import { saveRankings } from "./utils/storage.ts";
 import { Match, Work } from "./utils/types.ts";
 
 
@@ -79,13 +80,13 @@ let movies: Work[] = [
   },
 ];
 
-//for testing movies = movies.slice(undefined,4)
+movies = movies.slice(undefined,4)
 
 
 
 // Learn more at https://docs.deno.com/runtime/manual/examples/module_metadata#concepts
 if (import.meta.main) {
-  console.log("\n== ⚖️ SensCritiqueELO ⚖️ ==\n");
+  console.log("\n== ⚖️  SensCritiqueELO ⚖️  ==\n");
   console.log(`${movies.length} works loaded.`);
   const elo_rankings: Work[] = movies.map((movie) => ({
     ...movie,
@@ -95,16 +96,17 @@ if (import.meta.main) {
   console.log("Base rankings computed.");
   const new_rankings = tournament(elo_rankings);
   console.table(new_rankings);
-  saveRankings(new_rankings);
+  console.log("\n")
+  await saveRankings(new_rankings);
 }
 
 function tournament(elo_rankings: Work[]): Work[] {
-  console.log("ℹ️  Tournament started.");
+  console.log("\nℹ️  Tournament started.\n");
   const phase1_rankings = tournament_phase1(elo_rankings);
   console.clear()
   const phase2_rankings = tournament_phase2(phase1_rankings);
   console.clear()
-  console.log("ℹ️  Tournament finished.");
+  console.log("ℹ️  Tournament finished.\n");
   return phase2_rankings;
 }
 
